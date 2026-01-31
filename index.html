@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Solitaire</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Main Menu -->
+        <div id="menu-screen" class="screen active">
+            <div class="menu-container">
+                <h1 class="logo">Solitaire</h1>
+                <p class="tagline">Premium Card Experience</p>
+
+                <div class="menu-buttons">
+                    <button class="menu-btn" data-game="klondike1">
+                        <span class="btn-icon">♠</span>
+                        <span class="btn-text">Klondike</span>
+                        <span class="btn-subtitle">Draw 1</span>
+                    </button>
+                    <button class="menu-btn" data-game="klondike3">
+                        <span class="btn-icon">♦</span>
+                        <span class="btn-text">Klondike</span>
+                        <span class="btn-subtitle">Draw 3</span>
+                    </button>
+                    <button class="menu-btn" data-game="pyramid">
+                        <span class="btn-icon">▲</span>
+                        <span class="btn-text">Pyramid</span>
+                        <span class="btn-subtitle">Classic</span>
+                    </button>
+                </div>
+
+                <button class="stats-btn" id="show-stats">
+                    <span>Statistics</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <header class="game-header">
+                <button class="header-btn" id="back-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <div class="game-info">
+                    <span class="game-title" id="game-title">Klondike</span>
+                    <span class="game-moves" id="move-counter">0 moves</span>
+                </div>
+                <button class="header-btn" id="new-game-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                </button>
+            </header>
+
+            <div id="game-area">
+                <!-- Klondike Game Board -->
+                <div id="klondike-board" class="game-board">
+                    <div class="top-row">
+                        <div class="stock-waste">
+                            <div class="card-slot stock" id="stock"></div>
+                            <div class="card-slot waste" id="waste"></div>
+                        </div>
+                        <div class="foundations" id="foundations">
+                            <div class="card-slot foundation" data-suit="hearts"></div>
+                            <div class="card-slot foundation" data-suit="diamonds"></div>
+                            <div class="card-slot foundation" data-suit="clubs"></div>
+                            <div class="card-slot foundation" data-suit="spades"></div>
+                        </div>
+                    </div>
+                    <div class="tableau" id="tableau">
+                        <div class="tableau-pile" data-pile="0"></div>
+                        <div class="tableau-pile" data-pile="1"></div>
+                        <div class="tableau-pile" data-pile="2"></div>
+                        <div class="tableau-pile" data-pile="3"></div>
+                        <div class="tableau-pile" data-pile="4"></div>
+                        <div class="tableau-pile" data-pile="5"></div>
+                        <div class="tableau-pile" data-pile="6"></div>
+                    </div>
+                </div>
+
+                <!-- Pyramid Game Board -->
+                <div id="pyramid-board" class="game-board hidden">
+                    <div class="pyramid-area" id="pyramid-area"></div>
+                    <div class="pyramid-bottom">
+                        <div class="pyramid-stock-waste">
+                            <div class="card-slot stock" id="pyramid-stock"></div>
+                            <div class="card-slot waste" id="pyramid-waste"></div>
+                        </div>
+                        <div class="pyramid-discard">
+                            <div class="card-slot discard" id="pyramid-discard"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Win Modal -->
+            <div id="win-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="win-animation">
+                        <span class="trophy">🏆</span>
+                    </div>
+                    <h2>Congratulations!</h2>
+                    <p class="win-stats">Completed in <span id="final-moves">0</span> moves</p>
+                    <div class="modal-buttons">
+                        <button class="modal-btn primary" id="play-again">Play Again</button>
+                        <button class="modal-btn secondary" id="back-to-menu">Menu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Screen -->
+        <div id="stats-screen" class="screen">
+            <header class="stats-header">
+                <button class="header-btn" id="stats-back-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h2>Statistics</h2>
+                <div class="header-spacer"></div>
+            </header>
+
+            <div class="stats-container">
+                <div class="stats-card">
+                    <h3>Klondike (Draw 1)</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="k1-played">0</span>
+                            <span class="stat-label">Played</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="k1-won">0</span>
+                            <span class="stat-label">Won</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="k1-rate">0%</span>
+                            <span class="stat-label">Win Rate</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <h3>Klondike (Draw 3)</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="k3-played">0</span>
+                            <span class="stat-label">Played</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="k3-won">0</span>
+                            <span class="stat-label">Won</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="k3-rate">0%</span>
+                            <span class="stat-label">Win Rate</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <h3>Pyramid</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="pyr-played">0</span>
+                            <span class="stat-label">Played</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="pyr-won">0</span>
+                            <span class="stat-label">Won</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="pyr-rate">0%</span>
+                            <span class="stat-label">Win Rate</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="reset-stats-btn" id="reset-stats">Reset Statistics</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
