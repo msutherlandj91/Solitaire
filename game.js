@@ -343,8 +343,8 @@ class KlondikeGame {
         // Stock click
         this.stockEl.onclick = () => this.drawFromStock();
 
-        // Card clicks
-        document.querySelectorAll('.card').forEach(el => {
+        // Card clicks (only cards with data-card-id, not stock placeholders)
+        document.querySelectorAll('.card[data-card-id]').forEach(el => {
             el.onclick = (e) => this.handleCardClick(e);
         });
 
@@ -886,7 +886,8 @@ class KlondikeGame {
     }
 
     rebindEvents() {
-        document.querySelectorAll('#klondike-board .card').forEach(el => {
+        // Exclude stock cards - they don't have cardId and would block stock click
+        document.querySelectorAll('#klondike-board .card[data-card-id]').forEach(el => {
             el.onclick = (e) => this.handleCardClick(e);
         });
     }
