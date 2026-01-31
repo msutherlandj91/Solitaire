@@ -15,6 +15,14 @@ const RANK_VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8
 const isRed = (suit) => suit === 'hearts' || suit === 'diamonds';
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Touch/Mouse position helpers
+const getEventPos = (e) => {
+    if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+};
+
 // ============================================
 // CARD CLASS
 // ============================================
@@ -184,6 +192,14 @@ class KlondikeGame {
         this.gameStarted = false;
         this.gameEnded = false;
 
+        // Drag state
+        this.isDragging = false;
+        this.dragCards = [];
+        this.dragSource = null;
+        this.dragStartPos = { x: 0, y: 0 };
+        this.dragOffset = { x: 0, y: 0 };
+        this.dragElements = [];
+
         this.stockEl = document.getElementById('stock');
         this.wasteEl = document.getElementById('waste');
         this.foundationsEl = document.getElementById('foundations');
@@ -344,6 +360,230 @@ class KlondikeGame {
 
         // Double-click to auto-move to foundation
         document.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+
+        // Drag and drop
+        this.setupDragListeners();
+    }
+
+    setupDragListeners() {
+        const gameArea = document.getElementById('klondike-board');
+
+        // Remove old listeners by cloning (clean slate)
+        const handleDragStart = (e) => this.onDragStart(e);
+        const handleDragMove = (e) => this.onDragMove(e);
+        const handleDragEnd = (e) => this.onDragEnd(e);
+
+        gameArea.addEventListener('mousedown', handleDragStart, { passive: false });
+        gameArea.addEventListener('touchstart', handleDragStart, { passive: false });
+
+        document.addEventListener('mousemove', handleDragMove, { passive: false });
+        document.addEventListener('touchmove', handleDragMove, { passive: false });
+
+        document.addEventListener('mouseup', handleDragEnd);
+        document.addEventListener('touchend', handleDragEnd);
+        document.addEventListener('touchcancel', handleDragEnd);
+    }
+
+    onDragStart(e) {
+        if (this.gameEnded) return;
+
+        const cardEl = e.target.closest('.card');
+        if (!cardEl) return;
+
+        const card = this.findCardByElement(cardEl);
+        if (!card || !card.faceUp) return;
+
+        const source = this.findCardSource(card);
+        if (!source) return;
+
+        // Can't drag from foundations
+        if (source.type === 'foundation') return;
+
+        // Get cards to drag
+        let cardsToDrag = [card];
+        if (source.type === 'tableau') {
+            const pile = this.tableau[source.index];
+            const startIndex = pile.indexOf(card);
+            cardsToDrag = pile.slice(startIndex);
+        }
+
+        // Start drag
+        e.preventDefault();
+        this.clearSelection();
+
+        const pos = getEventPos(e);
+        const rect = cardEl.getBoundingClientRect();
+
+        this.isDragging = true;
+        this.dragCards = cardsToDrag;
+        this.dragSource = source;
+        this.dragStartPos = { x: rect.left, y: rect.top };
+        this.dragOffset = { x: pos.x - rect.left, y: pos.y - rect.top };
+        this.dragElements = [];
+
+        // Create drag elements
+        cardsToDrag.forEach((c, i) => {
+            const el = c.element;
+            const originalRect = el.getBoundingClientRect();
+
+            el.classList.add('dragging');
+            el.style.position = 'fixed';
+            el.style.left = `${originalRect.left}px`;
+            el.style.top = `${originalRect.top}px`;
+            el.style.zIndex = 1000 + i;
+            el.style.width = `${originalRect.width}px`;
+            el.style.height = `${originalRect.height}px`;
+
+            this.dragElements.push({
+                el,
+                startLeft: originalRect.left,
+                startTop: originalRect.top
+            });
+        });
+    }
+
+    onDragMove(e) {
+        if (!this.isDragging) return;
+        e.preventDefault();
+
+        const pos = getEventPos(e);
+        const deltaX = pos.x - this.dragOffset.x - this.dragStartPos.x;
+        const deltaY = pos.y - this.dragOffset.y - this.dragStartPos.y;
+
+        this.dragElements.forEach((item, i) => {
+            item.el.style.left = `${item.startLeft + deltaX}px`;
+            item.el.style.top = `${item.startTop + deltaY}px`;
+        });
+    }
+
+    onDragEnd(e) {
+        if (!this.isDragging) return;
+
+        const pos = e.changedTouches ?
+            { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } :
+            { x: e.clientX, y: e.clientY };
+
+        // Find drop target
+        const dropTarget = this.findDropTarget(pos.x, pos.y);
+
+        // Reset drag elements first
+        this.dragElements.forEach(item => {
+            item.el.classList.remove('dragging');
+            item.el.style.position = '';
+            item.el.style.left = '';
+            item.el.style.top = '';
+            item.el.style.zIndex = '';
+            item.el.style.width = '';
+            item.el.style.height = '';
+        });
+
+        if (dropTarget) {
+            // Perform the move
+            this.executeDragMove(dropTarget);
+        } else {
+            // Re-render source to reset positions
+            if (this.dragSource.type === 'tableau') {
+                this.renderTableauPile(this.dragSource.index);
+            } else if (this.dragSource.type === 'waste') {
+                this.renderWaste();
+            }
+        }
+
+        this.isDragging = false;
+        this.dragCards = [];
+        this.dragSource = null;
+        this.dragElements = [];
+        this.rebindEvents();
+    }
+
+    findDropTarget(x, y) {
+        const card = this.dragCards[0];
+
+        // Check foundations (only single cards)
+        if (this.dragCards.length === 1) {
+            const foundations = document.querySelectorAll('.foundation');
+            for (const foundationEl of foundations) {
+                const rect = foundationEl.getBoundingClientRect();
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                    const suit = foundationEl.dataset.suit;
+                    if (this.canMoveToFoundation(card, suit)) {
+                        return { type: 'foundation', suit };
+                    }
+                }
+            }
+        }
+
+        // Check tableau piles
+        const piles = document.querySelectorAll('.tableau-pile');
+        for (const pileEl of piles) {
+            const rect = pileEl.getBoundingClientRect();
+            // Expand hit area vertically for piles
+            if (x >= rect.left && x <= rect.right && y >= rect.top - 20 && y <= rect.bottom + 50) {
+                const pileIndex = parseInt(pileEl.dataset.pile);
+                if (pileIndex !== this.dragSource.index || this.dragSource.type !== 'tableau') {
+                    if (this.canMoveToTableau(card, pileIndex)) {
+                        return { type: 'tableau', index: pileIndex };
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    executeDragMove(target) {
+        const card = this.dragCards[0];
+        const source = this.dragSource;
+
+        if (target.type === 'foundation') {
+            // Remove from source
+            if (source.type === 'waste') {
+                this.waste.splice(this.waste.indexOf(card), 1);
+            } else if (source.type === 'tableau') {
+                this.tableau[source.index].pop();
+                this.flipTopCard(source.index);
+            }
+
+            // Add to foundation
+            this.foundations[target.suit].push(card);
+
+            // Update UI
+            this.renderFoundation(target.suit);
+            if (source.type === 'waste') {
+                this.renderWaste();
+            } else if (source.type === 'tableau') {
+                this.renderTableauPile(source.index);
+            }
+
+            this.moves++;
+            this.updateMoveCounter();
+            this.checkWin();
+
+        } else if (target.type === 'tableau') {
+            // Remove from source
+            if (source.type === 'waste') {
+                this.waste.pop();
+            } else if (source.type === 'tableau') {
+                const pile = this.tableau[source.index];
+                const startIndex = pile.indexOf(card);
+                this.tableau[source.index] = pile.slice(0, startIndex);
+                this.flipTopCard(source.index);
+            }
+
+            // Add to target
+            this.tableau[target.index].push(...this.dragCards);
+
+            // Update UI
+            if (source.type === 'waste') {
+                this.renderWaste();
+            } else if (source.type === 'tableau') {
+                this.renderTableauPile(source.index);
+            }
+            this.renderTableauPile(target.index);
+
+            this.moves++;
+            this.updateMoveCounter();
+        }
     }
 
     drawFromStock() {

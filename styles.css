@@ -12,7 +12,7 @@
     --text-secondary: rgba(245, 245, 245, 0.7);
     --text-muted: rgba(245, 245, 245, 0.35);
     --card-white: #f8f8f8;
-    --card-red: #8a8a8a;
+    --card-red: #c47a7a;
     --card-black: #3a3a3a;
     --success: #6a6a6a;
     --border-subtle: rgba(255, 255, 255, 0.06);
@@ -443,22 +443,27 @@ body {
 }
 
 .card.dragging {
-    z-index: 1000;
-    box-shadow: var(--shadow-lifted);
+    z-index: 1000 !important;
+    box-shadow: var(--shadow-lifted) !important;
     cursor: grabbing;
-    transition: none;
+    transition: none !important;
+    pointer-events: none;
 }
 
 .card.dealing {
+    opacity: 0;
     animation: dealCard 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes dealCard {
-    from {
+    0% {
         transform: translate(calc(50vw - var(--card-width) / 2), -100px) rotate(10deg);
         opacity: 0;
     }
-    to {
+    1% {
+        opacity: 1;
+    }
+    100% {
         transform: translate(0, 0) rotate(0deg);
         opacity: 1;
     }
