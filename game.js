@@ -206,6 +206,94 @@ class KlondikeGame {
         this.tableauEl = document.getElementById('tableau');
     }
 
+    // Serialize game state for persistence
+    serialize() {
+        return {
+            gameType: this.gameType,
+            drawCount: this.drawCount,
+            stock: this.stock.map(c => ({ suit: c.suit, rank: c.rank, faceUp: c.faceUp })),
+            waste: this.waste.map(c => ({ suit: c.suit, rank: c.rank, faceUp: c.faceUp })),
+            foundations: {
+                hearts: this.foundations.hearts.map(c => ({ suit: c.suit, rank: c.rank })),
+                diamonds: this.foundations.diamonds.map(c => ({ suit: c.suit, rank: c.rank })),
+                clubs: this.foundations.clubs.map(c => ({ suit: c.suit, rank: c.rank })),
+                spades: this.foundations.spades.map(c => ({ suit: c.suit, rank: c.rank }))
+            },
+            tableau: this.tableau.map(pile => pile.map(c => ({ suit: c.suit, rank: c.rank, faceUp: c.faceUp }))),
+            moves: this.moves,
+            gameStarted: this.gameStarted,
+            gameEnded: this.gameEnded
+        };
+    }
+
+    // Restore game from saved state
+    async restore(state) {
+        this.drawCount = state.drawCount;
+        this.moves = state.moves;
+        this.gameStarted = state.gameStarted;
+        this.gameEnded = state.gameEnded;
+
+        // Recreate cards
+        this.stock = state.stock.map(s => {
+            const card = new Card(s.suit, s.rank);
+            card.faceUp = s.faceUp;
+            return card;
+        });
+
+        this.waste = state.waste.map(s => {
+            const card = new Card(s.suit, s.rank);
+            card.faceUp = s.faceUp;
+            return card;
+        });
+
+        this.foundations = {
+            hearts: state.foundations.hearts.map(s => { const c = new Card(s.suit, s.rank); c.faceUp = true; return c; }),
+            diamonds: state.foundations.diamonds.map(s => { const c = new Card(s.suit, s.rank); c.faceUp = true; return c; }),
+            clubs: state.foundations.clubs.map(s => { const c = new Card(s.suit, s.rank); c.faceUp = true; return c; }),
+            spades: state.foundations.spades.map(s => { const c = new Card(s.suit, s.rank); c.faceUp = true; return c; })
+        };
+
+        this.tableau = state.tableau.map(pile => pile.map(s => {
+            const card = new Card(s.suit, s.rank);
+            card.faceUp = s.faceUp;
+            return card;
+        }));
+
+        this.clearBoard();
+        this.renderAll();
+        this.setupEventListeners();
+        this.updateMoveCounter();
+    }
+
+    renderAll() {
+        // Render stock
+        this.renderStock();
+
+        // Render waste
+        this.renderWaste();
+
+        // Render foundations
+        for (const suit of SUITS) {
+            this.renderFoundation(suit);
+        }
+
+        // Render tableau
+        for (let i = 0; i < 7; i++) {
+            this.renderTableauPile(i);
+        }
+    }
+
+    saveState() {
+        if (this.gameStarted && !this.gameEnded) {
+            const state = this.serialize();
+            localStorage.setItem('solitaire-current-game', JSON.stringify(state));
+        }
+    }
+
+    clearSavedState() {
+        localStorage.removeItem('solitaire-current-game');
+    }
+
     async init() {
         this.deck.reset();
         this.deck.shuffle();
@@ -557,6 +645,7 @@ class KlondikeGame {
 
             this.moves++;
             this.updateMoveCounter();
+            this.saveState();
             this.checkWin();
 
         } else if (target.type === 'tableau') {
@@ -583,6 +672,7 @@ class KlondikeGame {
 
             this.moves++;
             this.updateMoveCounter();
+            this.saveState();
         }
     }
 
@@ -612,6 +702,7 @@ class KlondikeGame {
         this.renderStock();
         this.renderWaste();
         this.rebindEvents();
+        this.saveState();
     }
 
     handleCardClick(e) {
@@ -825,6 +916,7 @@ class KlondikeGame {
         this.moves++;
         this.updateMoveCounter();
         this.clearSelection();
+        this.saveState();
         this.checkWin();
     }
 
@@ -872,6 +964,7 @@ class KlondikeGame {
         this.updateMoveCounter();
         this.clearSelection();
         this.rebindEvents();
+        this.saveState();
     }
 
     flipTopCard(pileIndex) {
@@ -897,6 +990,7 @@ class KlondikeGame {
 
         if (totalInFoundations === 52) {
             this.gameEnded = true;
+            this.clearSavedState();
             this.celebrateWin();
             game.stats.recordGame(this.gameType, true);
         }
@@ -943,6 +1037,87 @@ class PyramidGame {
         this.stockEl = document.getElementById('pyramid-stock');
         this.wasteEl = document.getElementById('pyramid-waste');
         this.discardEl = document.getElementById('pyramid-discard');
+    }
+
+    // Serialize game state for persistence
+    serialize() {
+        return {
+            gameType: this.gameType,
+            pyramid: this.pyramid.map(row => row.map(c => c ? { suit: c.suit, rank: c.rank, row: c.row, col: c.col } : null)),
+            stock: this.stock.map(c => ({ suit: c.suit, rank: c.rank })),
+            waste: this.waste.map(c => ({ suit: c.suit, rank: c.rank })),
+            discarded: this.discarded.map(c => ({ suit: c.suit, rank: c.rank })),
+            moves: this.moves,
+            gameStarted: this.gameStarted,
+            gameEnded: this.gameEnded
+        };
+    }
+
+    // Restore game from saved state
+    async restore(state) {
+        this.moves = state.moves;
+        this.gameStarted = state.gameStarted;
+        this.gameEnded = state.gameEnded;
+
+        // Recreate pyramid
+        this.pyramid = state.pyramid.map((row, rowIdx) => row.map((s, colIdx) => {
+            if (!s) return null;
+            const card = new Card(s.suit, s.rank);
+            card.faceUp = true;
+            card.row = rowIdx;
+            card.col = colIdx;
+            return card;
+        }));
+
+        this.stock = state.stock.map(s => new Card(s.suit, s.rank));
+        this.waste = state.waste.map(s => { const c = new Card(s.suit, s.rank); c.faceUp = true; return c; });
+        this.discarded = state.discarded.map(s => new Card(s.suit, s.rank));
+
+        this.clearBoard();
+        this.renderAll();
+        this.setupEventListeners();
+        this.updateMoveCounter();
+    }
+
+    renderAll() {
+        // Render pyramid
+        for (let row = 0; row < 7; row++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'pyramid-row';
+            rowDiv.dataset.row = row;
+
+            for (let col = 0; col <= row; col++) {
+                const card = this.pyramid[row][col];
+                const wrapper = document.createElement('div');
+                wrapper.className = 'pyramid-card';
+                wrapper.dataset.row = row;
+                wrapper.dataset.col = col;
+
+                if (card) {
+                    wrapper.appendChild(card.createElement());
+                } else {
+                    wrapper.classList.add('empty');
+                }
+
+                rowDiv.appendChild(wrapper);
+            }
+            this.pyramidEl.appendChild(rowDiv);
+        }
+
+        this.renderStock();
+        this.renderWaste();
+        this.updateBlockedCards();
+    }
+
+    saveState() {
+        if (this.gameStarted && !this.gameEnded) {
+            const state = this.serialize();
+            localStorage.setItem('solitaire-current-game', JSON.stringify(state));
+        }
+    }
+
+    clearSavedState() {
+        localStorage.removeItem('solitaire-current-game');
     }
 
     async init() {
@@ -1116,6 +1291,7 @@ class PyramidGame {
         this.renderStock();
         this.renderWaste();
         this.rebindEvents();
+        this.saveState();
     }
 
     handleCardClick(e) {
@@ -1238,6 +1414,7 @@ class PyramidGame {
             this.moves++;
             this.updateMoveCounter();
             this.rebindEvents();
+            this.saveState();
             this.checkWin();
         }, 200);
     }
@@ -1252,6 +1429,7 @@ class PyramidGame {
 
         if (pyramidEmpty) {
             this.gameEnded = true;
+            this.clearSavedState();
             game.stats.recordGame(this.gameType, true);
             setTimeout(() => {
                 game.showWinModal(this.moves);
@@ -1288,6 +1466,48 @@ class GameController {
         };
 
         this.setupNavigation();
+        this.checkSavedGame();
+    }
+
+    checkSavedGame() {
+        const saved = localStorage.getItem('solitaire-current-game');
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                if (state && state.gameType && state.gameStarted && !state.gameEnded) {
+                    this.restoreSavedGame(state);
+                }
+            } catch (e) {
+                console.error('Failed to restore saved game:', e);
+                localStorage.removeItem('solitaire-current-game');
+            }
+        }
+    }
+
+    async restoreSavedGame(state) {
+        this.currentGameType = state.gameType;
+
+        // Hide all boards
+        Object.values(this.boards).forEach(board => {
+            board.classList.add('hidden');
+        });
+
+        // Set title and create game
+        let title = '';
+        if (state.gameType === 'klondike1' || state.gameType === 'klondike3') {
+            title = state.gameType === 'klondike1' ? 'Klondike (Draw 1)' : 'Klondike (Draw 3)';
+            this.boards.klondike.classList.remove('hidden');
+            this.currentGame = new KlondikeGame(state.drawCount);
+        } else if (state.gameType === 'pyramid') {
+            title = 'Pyramid';
+            this.boards.pyramid.classList.remove('hidden');
+            this.currentGame = new PyramidGame();
+        }
+
+        document.getElementById('game-title').textContent = title;
+        this.showScreen('game');
+        this.hideWinModal();
+        await this.currentGame.restore(state);
     }
 
     setupNavigation() {
@@ -1359,15 +1579,14 @@ class GameController {
     newGame() {
         if (this.currentGame) {
             this.currentGame.recordLoss();
+            this.currentGame.clearSavedState();
         }
         this.hideWinModal();
         this.startGame(this.currentGameType);
     }
 
     backToMenu() {
-        if (this.currentGame) {
-            this.currentGame.recordLoss();
-        }
+        // Don't record loss - game is saved and can be resumed
         this.hideWinModal();
         this.showScreen('menu');
     }
