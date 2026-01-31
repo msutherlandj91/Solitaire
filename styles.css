@@ -268,7 +268,9 @@ body {
 }
 
 .game-board.hidden {
-    display: none;
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* Card Slots */
@@ -529,7 +531,11 @@ body {
 .pyramid-row {
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     gap: calc(var(--card-width) * 0.1);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .pyramid-bottom {
@@ -557,11 +563,25 @@ body {
 /* Card in Pyramid */
 .pyramid-card {
     position: relative;
+    width: var(--card-width);
+    height: var(--card-height);
+    flex-shrink: 0;
+}
+
+/* Override absolute positioning for cards inside pyramid */
+.pyramid-card .card {
+    position: relative;
+    top: auto;
+    left: auto;
 }
 
 .pyramid-card.blocked {
     opacity: 0.6;
     pointer-events: none;
+}
+
+.pyramid-card.empty {
+    visibility: hidden;
 }
 
 .pyramid-card.matched {
